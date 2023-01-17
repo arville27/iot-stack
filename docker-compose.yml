@@ -1,0 +1,75 @@
+version: '3'
+
+services:
+# Infastructure
+  mosquitto:
+    container_name: mosquitto
+    image: eclipse-mosquitto:2.0.15
+    volumes:
+      - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: always
+    ports:
+      - "1883:1883"
+
+  telegraf:
+    container_name: telegraf
+    image: telegraf:1.25-alpine
+    restart: always
+    environment:
+      - NO_PROXY="influxdb:8086"
+      - DOCKER_INFLUXDB_INIT_HOST=influxdb
+    volumes:
+      - ./config/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - mosquitto
+      - influxdb
+
+  influxdb:
+    image: influxdb:2.6-alpine
+    container_name: influxdb
+    restart: always
+    ports:
+      - 8086:8086
+    volumes:
+      - ./config/influxdb/data:/var/lib/influxdb2
+      - ./config/influxdb/config:/etc/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORGANIZATION}
+      - DOCKER_INFLUXDB_INIT_BUCKET={INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+
+# Application
+  iot-dashboard:
+    image: arville27/iot-dashboard
+    build:
+      context: modules/iot-dashboard
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    restart: always
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
+      - INFLUXDB_ORG=${INFLUXDB_ORGANIZATION}
+    depends_on:
+      - influxdb
+
+  iot-guest-notify:
+    container_name: iot-guest-notify
+    image: arville27/iot-guest-notify
+    build:
+      context: modules/iot-guest-notify
+      dockerfile: Dockerfile
+    environment:
+      - CHANNEL_ACCESS_TOKEN=${CHANNEL_ACCESS_TOKEN}
+      - CHANNEL_SECRET=${CHANNEL_SECRET}
+      - BROKER_HOSTNAME=mosquitto
+      - BROKER_PORT=1883
+      - BROKER_TOPIC=${LCD_MESSAGE_TOPIC}
+    depends_on:
+      - mosquitto
+    restart: always

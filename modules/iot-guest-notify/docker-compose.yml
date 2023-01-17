@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  iot-guest-notify:
+    container_name: iot-guest-notify
+    image: arville27/iot-guest-notify
+    build: .
+    environment:
+      - CHANNEL_ACCESS_TOKEN=${CHANNEL_ACCESS_TOKEN}
+      - CHANNEL_SECRET=${CHANNEL_SECRET}
+      - BROKER_HOSTNAME=${BROKER_HOSTNAME}
+      - BROKER_PORT=${BROKER_PORT}
+      - BROKER_TOPIC=${BROKER_TOPIC}
+    restart: always
+    networks:
+      - iot
+
+  tunnel:
+    container_name: tunnel-iot
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL}
+    networks:
+      - iot
+
+networks:
+  iot:
+    external: true

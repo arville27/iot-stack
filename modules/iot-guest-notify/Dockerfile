@@ -1,0 +1,17 @@
+FROM node:18-alpine
+
+ENV CHANNEL_ACCESS_TOKEN=
+ENV CHANNEL_SECRET=
+ENV BROKER_HOSTNAME=
+ENV BROKER_PORT=
+ENV BROKER_TOPIC=
+
+WORKDIR /app
+
+COPY . .
+
+RUN npm install --production
+
+EXPOSE 3500
+
+CMD [ "npm", "start" ]
